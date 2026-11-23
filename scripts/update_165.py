@@ -15,7 +15,7 @@ DATASETS = {
     "176455": "https://data.gov.tw/api/v2/rest/dataset/176455",
 }
 
-OUTPUT = Path("filters/scampage/165.txt")
+OUTPUT = Path("filters/165.txt")
 
 USER_AGENT = (
     "Mozilla/5.0 "
