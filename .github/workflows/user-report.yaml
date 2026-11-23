@@ -1,0 +1,108 @@
+
+name: Review User Blocklist Submission
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: user-report-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Validate and process submission
+        id: review
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: python scripts/review_user_report.py
+
+      - name: Close invalid submission
+        if: steps.review.outputs.status == 'invalid'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ERROR_MESSAGE: ${{ steps.review.outputs.error }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" \
+            --body "投稿未符合格式，已自動關閉此 Issue。
+
+          原因：$ERROR_MESSAGE
+
+          請確認標題以 [Blocklist] 開頭，並且只在指定的三個反引號區塊中填入有效網域。"
+
+          gh issue close "$ISSUE_NUMBER" \
+            --reason "not planned"
+
+      - name: Close duplicate submission
+        if: steps.review.outputs.status == 'duplicate'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          DUPLICATES: ${{ steps.review.outputs.duplicates }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" \
+            --body "投稿已完成檢查，但所有網域都已存在於 filters/ 目錄中的清單，因此不需要建立 Pull Request。
+
+          重複網域：
+          $DUPLICATES"
+
+          gh issue close "$ISSUE_NUMBER" \
+            --reason "not planned"
+
+      - name: Create Pull Request
+        if: steps.review.outputs.status == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          NEW_COUNT: ${{ steps.review.outputs.new_count }}
+          DUPLICATE_COUNT: ${{ steps.review.outputs.duplicate_count }}
+        run: |
+          BRANCH="user-report/issue-${ISSUE_NUMBER}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+
+          git add filters/user-report.txt
+
+          git commit -m "feat: add user reported blocklist #${ISSUE_NUMBER}"
+
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "$BRANCH" \
+            --title "User Blocklist Submission #${ISSUE_NUMBER}" \
+            --body "## User Blocklist Submission
+
+          - Source Issue: #${ISSUE_NUMBER}
+          - New domains: ${NEW_COUNT}
+          - Duplicate domains removed: ${DUPLICATE_COUNT}
+
+          新網域已加入 filters/user-report.txt。
+
+          請管理員確認投稿內容後合併。
+
+          Closes #${ISSUE_NUMBER}"
