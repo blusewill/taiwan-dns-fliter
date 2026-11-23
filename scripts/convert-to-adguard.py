@@ -123,10 +123,10 @@ def collect_domains():
 
 def generate_filter(domains):
     lines = [
-        "! Title: My DNS Blocklist",
-        "! Description: Combined DNS Blocklist",
+        "! Title: 台灣詐騙網站封鎖",
+        "! Description: 封鎖了台灣上的詐騙網站，但不包括加密貨幣廣告等",
         "! Format: AdGuard DNS Filtering",
-        "! Source: filters/",
+        "! Source: https://raw.githubusercontent.com/blusewill/taiwan-dns-fliter/refs/heads/master/filter.txt",
         f"! Total domains: {len(domains)}",
         "",
     ]
