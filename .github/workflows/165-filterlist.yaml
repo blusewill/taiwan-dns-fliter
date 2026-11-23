@@ -33,7 +33,7 @@ jobs:
       - name: Check changes
         id: changes
         run: |
-          if git diff --quiet -- filters/scampage/165.txt; then
+          if git diff --quiet -- filters/165.txt; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
