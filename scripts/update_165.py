@@ -336,26 +336,16 @@ def extract_domains_176455(csv_text: str) -> set[str]:
 
 
 def generate_blocklist(domains: set[str]):
-    """產生 AdGuard DNS filter。"""
+    """產生純網域格式的 Blocklist。"""
 
     if not domains:
         raise RuntimeError(
-            "最後沒有任何有效網域，為避免覆蓋既有清單而停止。"
+            "沒有任何有效網域，停止更新以保護舊清單。"
         )
 
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
 
-    lines = [
-        "! Title: Taiwan 165 Scam Page Blocklist",
-        "! Source: data.gov.tw dataset 160055 + 176455",
-        "! Generated automatically by GitHub Actions",
-        "! Format: AdGuard DNS filter",
-        f"! Domains: {len(domains)}",
-        "",
-    ]
-
-    for domain in sorted(domains):
-        lines.append(f"||{domain}^")
+    lines = sorted(domains)
 
     OUTPUT.write_text(
         "\n".join(lines) + "\n",
