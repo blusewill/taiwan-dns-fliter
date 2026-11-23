@@ -1,0 +1,57 @@
+name: Update Taiwan 165 Scam Blocklist
+
+on:
+  schedule:
+    # GitHub Actions 使用 UTC
+    # 18:00 UTC = 台灣時間隔日 02:00
+    # 因此這裡代表每月 2 號凌晨 02:00（台灣時間）
+    - cron: "0 18 1 * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Update 165 blocklist
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Update blocklist
+        run: |
+          python scripts/update_165.py
+
+      - name: Check changes
+        id: changes
+        run: |
+          if git diff --quiet -- filters/scampage/165.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated blocklist
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add filters/scampage/165.txt
+
+          git commit -m "chore: update 165 scam blocklist"
+
+          git push
+
+      - name: No changes
+        if: steps.changes.outputs.changed == 'false'
+        run: |
+          echo "Blocklist has no changes."
