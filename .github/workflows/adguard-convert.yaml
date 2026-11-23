@@ -1,0 +1,65 @@
+name: Build Combined AdGuard Filter
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "filters/**"
+      - "scripts/convert-to-adguard.py"
+      - ".github/workflows/adguard-convert.yaml"
+  schedule:
+    - cron: "30 18 1 * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-combined-filter
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Generate filter.txt
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build AdGuard filter
+        run: python scripts/convert-to-adguard.py
+
+      - name: Check changes
+        id: changes
+        run: |
+          if git diff --quiet -- filter.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit updated filter
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add filter.txt
+
+          git commit -m "chore: update combined AdGuard filter"
+
+          git push
+
+      - name: No changes
+        if: steps.changes.outputs.changed == 'false'
+        run: |
+          echo "filter.txt is already up to date."
